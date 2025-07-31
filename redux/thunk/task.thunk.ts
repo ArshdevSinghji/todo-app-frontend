@@ -56,7 +56,9 @@ export const createAssignTaskThunk = createAsyncThunk(
   "createAssignTaskThunk",
   async (data: { taskId: number; userId: number }, thunkAPI) => {
     try {
-      const response = await axiosInstance.post("/assigned-task", data);
+      const response = await axiosInstance.post(
+        `/assigned-task/${data.taskId}/userId/${data.userId}`
+      );
       return response.data;
     } catch (error: any) {
       return thunkAPI.rejectWithValue(

@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hook";
 import { getTasksThunk } from "@/redux/thunk/task.thunk";
 import {
   Box,
+  Button,
   Container,
   FormControl,
   InputLabel,
@@ -17,6 +18,7 @@ import {
 import React, { useEffect, useMemo, useState } from "react";
 import debounce from "lodash/debounce";
 import { useRouter } from "next/navigation";
+import CreateTaskDialog from "@/components/createTaskDialog";
 
 const Home = () => {
   const router = useRouter();
@@ -28,6 +30,11 @@ const Home = () => {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [filterType, setFilterType] = useState("myCreation");
+  const [open, setOpen] = useState(false);
+
+  const handleClose = () => {
+    setOpen(false);
+  };
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -92,6 +99,14 @@ const Home = () => {
           onChange={(e) => setEndTime(e.target.value)}
           sx={{ minWidth: 150 }}
         />
+        <Button
+          variant="contained"
+          onClick={() => setOpen(true)}
+          sx={{ height: "100%" }}
+        >
+          Create Task
+        </Button>
+        <CreateTaskDialog open={open} onClose={handleClose} />
       </Box>
 
       {tasks.map((task) => {
