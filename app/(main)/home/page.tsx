@@ -3,34 +3,51 @@
 import { useAppDispatch, useAppSelector } from "@/redux/hook";
 import { getTasksThunk } from "@/redux/thunk/task.thunk";
 import {
+  Autocomplete,
   Box,
   Button,
+  Chip,
+  CircularProgress,
   Container,
-  FormControl,
-  InputLabel,
+  Divider,
+  InputAdornment,
   MenuItem,
   Pagination,
   Paper,
-  Select,
   TextField,
   Typography,
 } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
+
 import debounce from "lodash/debounce";
+import SearchIcon from "@mui/icons-material/Search";
+
 import { useRouter } from "next/navigation";
 import CreateTaskDialog from "@/components/createTaskDialog";
+import { getUsersThunk } from "@/redux/thunk/user.thunk";
+
+interface User {
+  uid: number;
+  username: string;
+  email: string;
+}
 
 const Home = () => {
   const router = useRouter();
 
   const dispatch = useAppDispatch();
   const { tasks, count } = useAppSelector((state) => state.task);
+  const { users } = useAppSelector((state) => state.user);
 
   const [page, setPage] = useState(1);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [filterType, setFilterType] = useState("myCreation");
   const [open, setOpen] = useState(false);
+  const [usersOpen, setUsersOpen] = useState(false);
+  const [isLoadingDebounce, setIsLoadingDebounce] = useState(true);
+  const [inputValue, setInputValue] = useState("");
+  const [selectedUser, setSelectedUser] = useState<User[]>([]);
 
   const handleClose = () => {
     setOpen(false);
@@ -60,9 +77,40 @@ const Home = () => {
     [dispatch, startTime, endTime, page, filterType]
   );
 
+  const debouncedSearchUser = useMemo(
+    () =>
+      debounce(async (value: string) => {
+        await dispatch(getUsersThunk({ searchTerm: value, limit: 10 }));
+      }, 500),
+    [dispatch, startTime, endTime, page, filterType]
+  );
+
+  const handleInputChange = (event: any, value: string) => {
+    setInputValue(value);
+    if (value) {
+      setIsLoadingDebounce(false);
+      debouncedSearchUser(value);
+    } else {
+      setIsLoadingDebounce(true);
+    }
+  };
+
+  const handleFilter = async () => {
+    await dispatch(
+      getTasksThunk({
+        limit: 10,
+        pageNumber: page,
+        filterType,
+        userIds: selectedUser.map((user) => user.uid),
+        startTime: startTime ? new Date(startTime) : undefined,
+        endTime: endTime ? new Date(endTime) : undefined,
+      })
+    );
+  };
+
   return (
     <Container>
-      <Box display="flex" gap={2} alignItems="center" mb={2}>
+      <Box display="flex" gap={2} alignItems="center" mb={2} flexWrap="wrap">
         <TextField
           label="Search Tasks"
           variant="outlined"
@@ -71,34 +119,108 @@ const Home = () => {
           margin="normal"
         />
 
-        <FormControl sx={{ minWidth: 150 }}>
-          <InputLabel id="filter-type-label">Type</InputLabel>
-          <Select
-            labelId="filter-type-label"
-            value={filterType}
-            label="Type"
-            onChange={(e) => setFilterType(e.target.value)}
-          >
-            <MenuItem value="myCreation">My Creation</MenuItem>
-            <MenuItem value="assignedTask">Assigned Task</MenuItem>
-          </Select>
-        </FormControl>
         <TextField
+          select
+          label="Filter Type"
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
+          sx={{ minWidth: 150 }}
+        >
+          <MenuItem value="myCreation">My Creation</MenuItem>
+          <MenuItem value="assignedTask">Assigned Task</MenuItem>
+        </TextField>
+
+        <Box>
+          <Autocomplete
+            disablePortal
+            fullWidth
+            sx={{ minWidth: 400 }}
+            options={users}
+            getOptionLabel={(option) => option.username}
+            loading={isLoadingDebounce}
+            loadingText={<CircularProgress size={18} />}
+            inputValue={inputValue}
+            onInputChange={handleInputChange}
+            open={usersOpen}
+            onOpen={() => {
+              if (inputValue) setUsersOpen(true);
+            }}
+            onClose={() => {
+              setIsLoadingDebounce(true);
+              setUsersOpen(false);
+            }}
+            forcePopupIcon={false}
+            noOptionsText="No user found :("
+            onChange={(event, value) => {
+              if (value) {
+                if (!selectedUser.some((user) => user.uid === value.uid)) {
+                  setSelectedUser((prev) => [...prev, value]);
+                }
+                setUsersOpen(true);
+              } else {
+                setUsersOpen(false);
+              }
+              setIsLoadingDebounce(true);
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Filter by user..."
+                size="small"
+                InputProps={{
+                  ...params.InputProps,
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            )}
+          />
+
+          <Divider orientation="vertical" flexItem />
+
+          {selectedUser.map((user) => (
+            <Chip
+              key={user.uid}
+              label={user.username}
+              sx={{ m: 0.5 }}
+              onDelete={() =>
+                setSelectedUser((prev) =>
+                  prev.filter((u) => u.uid !== user.uid)
+                )
+              }
+            />
+          ))}
+
+          {selectedUser.length > 0 && (
+            <Button
+              variant="outlined"
+              color="primary"
+              size="small"
+              onClick={handleFilter}
+            >
+              set
+            </Button>
+          )}
+        </Box>
+
+        <TextField
+          type="datetime-local"
           label="Start Time"
-          type="date"
-          InputLabelProps={{ shrink: true }}
-          value={startTime}
           onChange={(e) => setStartTime(e.target.value)}
-          sx={{ minWidth: 150 }}
+          InputLabelProps={{ shrink: true }}
+          fullWidth
         />
         <TextField
+          type="datetime-local"
           label="End Time"
-          type="date"
-          InputLabelProps={{ shrink: true }}
-          value={endTime}
           onChange={(e) => setEndTime(e.target.value)}
-          sx={{ minWidth: 150 }}
+          InputLabelProps={{ shrink: true }}
+          fullWidth
         />
+
         <Button
           variant="contained"
           onClick={() => setOpen(true)}

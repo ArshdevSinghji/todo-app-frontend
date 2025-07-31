@@ -1,6 +1,8 @@
 import { axiosInstance } from "@/utils/axiosInstance";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 
+import qs from "qs";
+
 export const getTaskByIdThunk = createAsyncThunk(
   "getTaskByIdThunk",
   async (taskId: number, thunkAPI) => {
@@ -25,11 +27,18 @@ export const getTasksThunk = createAsyncThunk(
       endTime?: Date;
       searchTerm?: string;
       filterType?: string;
+      userIds?: number[];
     },
     thunkAPI
   ) => {
     try {
       const response = await axiosInstance.get("task", {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${
+            document.cookie.split("token=")[1]?.split(";")[0]
+          }`,
+        },
         params: {
           limit: 10,
           offset: params.pageNumber - 1,
@@ -37,11 +46,10 @@ export const getTasksThunk = createAsyncThunk(
           endTime: params.endTime,
           searchTerm: params.searchTerm,
           filterType: params.filterType,
+          userIds: params.userIds,
         },
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        paramsSerializer: (params) =>
+          qs.stringify(params, { arrayFormat: "repeat" }),
       });
       return response.data;
     } catch (error: any) {
@@ -72,7 +80,14 @@ export const getUserFromAssignedTaskThunk = createAsyncThunk(
   "getUserFromAssignedTaskThunk",
   async (taskId: number, thunkAPI) => {
     try {
-      const response = await axiosInstance.get(`/assigned-task/${taskId}`);
+      const response = await axiosInstance.get(`/assigned-task/${taskId}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${
+            document.cookie.split("token=")[1]?.split(";")[0]
+          }`,
+        },
+      });
       return response.data;
     } catch (error: any) {
       return thunkAPI.rejectWithValue(

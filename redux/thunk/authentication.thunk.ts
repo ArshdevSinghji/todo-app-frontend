@@ -12,7 +12,7 @@ export const signInThunk = createAsyncThunk(
       const res = await axiosInstance.post("auth/signIn", signInPayload);
 
       if (res.data.accessToken) {
-        localStorage.setItem("token", res.data.accessToken);
+        document.cookie = `token=${res.data.accessToken}; path=/; max-age=3600; `;
       }
 
       return res.data;
